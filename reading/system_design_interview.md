@@ -194,4 +194,30 @@ Rate limiting is usually implemented in an API Gateway. API Gateway is a fully m
 #### Algorithms for Rate limiting
 - token bucket, leaking bucket, fixed window counter, sliding window log, sliding window counter
 
+High level architecture
+- Client (sends request to) --> rate limiter middleware --> (checks corresponding bucket in Redis) Redis
+                                                        --> (limit is not reached, request goes through to) API Servers
+
+Deep Dive
+- HTTP response headers inform clients whether they're throttled
+- Headers
+  - X-ratelimit-remaining
+  - X-ratelimit-limit
+  - X-ratelimit-retry-after
+- Return 429 HTTP code for _too many requests_
+
+In a distributed environment, rate limiter encounter two challenges when scaling the system to support multiple servers and concurrent threads:
+- race condition (to solve this, commonly used solutions are Lua script and sorted sets data structure)
+- synchronization issue (use centralized data store, Redis to solve this)
+
+Performance optimization options:
+- multi data center setup. Automatically route traffic to the closest edge server to reduce latency
+- synchronize data with an eventual consistency model
+
+
+## Chapter 5 - Design Consistent Hasing
+Consistent hasing is a commonly used technique to achieve horizontal scaling and distributing requests/data efficiently and evenly across servers
+
+Consistent hasing is a special kind of hasing such that when a hash table is re-sized and consistent hasing is used, only k/n keys need to be remapped on average, where k is the number of keys, and n is the number of slots
+
 
