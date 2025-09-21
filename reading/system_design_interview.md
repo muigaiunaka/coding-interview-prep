@@ -159,4 +159,39 @@ Don'ts
 - don't go into too much detail on a single component in the beginning
 - don't hesitate to ask for hints if stuck
 - don't think in silence
-- 
+
+## Chapter 4 - Design a rate limiter
+In a network system, a rate limiter is used to control the rate of traffic sent by a client or a service. 
+In the HTTP world, a rate limiter limits the number of client requests allowed to be sent over a specified period
+
+#### Benefits of Rate Limiter:
+- prevent resource starvation caused by denial of service attack
+- Reduce cost
+- prevent servers from being overloaded
+
+Questions to Ask interviewer
+- what kind of rate limiter, client side or server side?
+- what are the throttle rules? (by IP, user id, or other properties)
+- will the system work in a distributed environment
+- is it a separate service or should it be implemented in application code?
+- do we need to inform the users who are throttled?
+
+#### Requirements
+- accurately limit excessive requests
+- low latency response time
+- use as little memory as possible
+- distributed rate limiting. Can be shared across multiple servers or processes
+- Show clear exceptions to users when their requests are throttled
+- high fault tolerance; if there are problems with the rate limiter, it does not affect the entire system
+
+#### Options for Rate Limiter
+- client side rate limiting (unreliable place to enforce rate limiting because client requests can be forged by malicious actors. Also, we might not have control over the client implementation.)
+- server side rate limiting
+- middleware for rate limiting
+
+Rate limiting is usually implemented in an API Gateway. API Gateway is a fully managed service that supports *rate limiting, SSL termination, authentication, IP whitelisting, servicing static content, etc.*
+
+#### Algorithms for Rate limiting
+- token bucket, leaking bucket, fixed window counter, sliding window log, sliding window counter
+
+
