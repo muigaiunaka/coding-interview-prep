@@ -69,4 +69,94 @@ Summary of how to scale system to support millions of users:
 * split tiers into individual services
 * monitor system and use automation tools
 
-## Chapter 2:
+## Chapter 2: Back of the envelope estimation
+
+Power of Two
+
+| Power | Approximate Value | Full Name  | Short Name |
+| ----: | ----------------- | ---------- | ---------- |
+|    10 | 1 thousand        | 1 kilobyte | 1 kB       |
+|    20 | 1 million         | 1 megabyte | 1 MB       |
+|    30 | 1 billion         | 1 gigabyte | 1 GB       |
+|    40 | 1 trillion        | 1 terabyte | 1 TB       |
+|    50 | 1 quadrillion     | 1 petabyte | 1 PB       |
+
+
+Latency Numbers Tips
+- memory is fast but the disk is slow
+- avoid disk seeks if possible
+- simple compression algorithms are fast
+- compress data before sending it over the internet if possible
+- data centers are usually in different regions, and it takes time to send data between them
+
+Availability Numbers
+- Service Level Agreement (SLA) - agreement between service provider and customer, which defines the level of uptime the service will deliver
+- 99% 14.40 minutes downtime per day to 99.9999% is 86.40 milliseconds downtime per day. range of adding 9s which drops downtime relationally
+
+## Chapter 3: A framework for system design interviews
+System design interview gives signals on one's ability:
+- to collaborate
+- to work under pressure
+- to resolve ambiguity constructively
+- to ask good questions
+- present technical design skills
+
+4 Step process
+#### Step 1 - Understand the problem and establish design scope
+_Time allocation: 3 to 10 minutes_
+- don't jump right in to give a solution. Think deeply, ask questions to clarify requirements and assumptions
+- Questions to ask
+  - what specific features are we going to build?
+  - how many users does the product have?
+  - how fast does the company anticipate to scale up? What are the anticipated scales in 3 months, 6 months and a year?
+News Feed Example
+  - is this a mobile app or web app or both?
+  - what are the most important features for the product?
+  - is the news feed sorted in reverse chronological order or a particular order? The particular order means each post is given a different weight. For example, close friend's posts are more important than posts from a group
+  - how many friends can a user have?
+  - *what is the traffic volume?*
+  - can the feed contain images, videos or just text?
+
+#### Step 2 - propose high level design and get buy-in
+_Time allocation: 10 to 15 minutes_
+- Aim to develop a high level design and reach an agreement with the interviewer on the design. Collaborate with the interviewer during the process
+- Start small with initial blueprint for the design, ask for feedback, iterate. Treat interviewer like teammate
+- Draw box diagrams with key components
+- if possible, go through a few concrete use cases to help frame the high level design and discover edge cases
+
+#### Step 3 - Design deep dive
+_Time allocation: 10 to 25 minutes_
+At this step, you and interviewer should have already achieved the following objectives:
+- agreed on overall goals and feature scope
+- sketched out high level design
+- obtained feedback from interviewer on high level design
+- had some initial ideas about areas to focus on in deep dive based
+
+Sometimes the discussion could be on the system perforamcne characteristics, likely focusing on bottlenecks and resource estimations
+
+#### Step 4 - Wrap up
+_Time allocation: 3 to 5 minutes_
+You may get a few follow-up questions or get the freedom to discuss other additional points. Some directions to follow:
+- interviewer might want you to identify the system bottlenecks and discuss potential improvements
+- could be useful to give recap of design
+- error cases (server failure, network los, etc)
+- operation issues such as monitoring metrics and error logs or how to roll out the system
+- how to handle the next scale curve
+
+Dos and Don'ts
+Do's
+- always ask for clarification
+- understand the requirements of the problem
+- There's no right or best answer
+- Communicate and think aloud
+- Suggest multiple approaches if possible
+- Once you agree with interviewer on HLD, go into details on each component. Design the most critical components first
+- Bounce ideas off the interviewer
+
+Don'ts
+- don't be unprepared for typical interview questions
+- don't jump into a solution without clarifying the requirements and assumptions
+- don't go into too much detail on a single component in the beginning
+- don't hesitate to ask for hints if stuck
+- don't think in silence
+- 
