@@ -220,4 +220,42 @@ Consistent hasing is a commonly used technique to achieve horizontal scaling and
 
 Consistent hasing is a special kind of hasing such that when a hash table is re-sized and consistent hasing is used, only k/n keys need to be remapped on average, where k is the number of keys, and n is the number of slots
 
+## Chapter 6 design a key galue store
 
+#### design scope
+- size of key value pair is below 10kb
+- able to store big data
+- high availability
+- high scalability to support large data sets
+- auto scale (addition/deletion of server is automatic)
+- tunable consistency
+- low latency
+
+CAP Theorem
+consistency means all clients see the same data at the same time no matter which node they connect to
+availability means any client that requests data gets a response even if some nodes are down
+partition tolerance indicates a communication break between two nodes. system continues to operate despite network partitions
+
+A over C means system keeps accepting reads even if it may return stale data
+C over A means system must block all write ops to avoid inconsistency 
+
+Data Partition
+two challenges:
+distribute data across multiple servers evenly
+minimize data movement when nodes are addedor removed
+
+great technique to solve is consistent hashing
+
+data replicas
+for better reliability, replicas are places in distinct data centers and data centers are connected through high speed networks
+
+consistency
+consistency models
+strong consistency means any read operation returns a value corresponding to the result of the most updated write data item. client never sees out of date data
+weak consistency means subsequent read operations may not see the most updated value
+eventusl consistency means given enough time, all updates are made and all replicas are consisteng
+
+gossip protocol
+decentralized failure detection method whicg has nodes with id and heartbeat counters, if heartbeat not increased for a node, consider it offline
+
+## chapter 7 design a unique id generator in distributed systems
