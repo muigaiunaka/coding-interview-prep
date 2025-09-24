@@ -259,3 +259,68 @@ gossip protocol
 decentralized failure detection method whicg has nodes with id and heartbeat counters, if heartbeat not increased for a node, consider it offline
 
 ## chapter 7 design a unique id generator in distributed systems
+twitter snowflake - scalable in a distributed environment
+uuid
+multi master replica
+ticket server
+
+## chapter 8 design a url shortenere
+
+clarifying questions
+- can you give an example of how this works?
+- what is traffic volume?
+- length of output?
+- char restrictions?
+- can urls be deleted / updated?
+
+requirements
+- shorten url
+- redirect to long url
+- high availability, scalability, fault tolerance
+
+API - REST
+POST api/v1/data/shorten
+takes in longUrl
+returns shortURL
+
+GET api/v1/shortUrl
+return long url for http redirection, 301 redirect code
+
+301 permanent redirect better for reduced server loads
+302 temporary, better for analytics
+
+deep dives
+data model 
+hash function
+url shortening
+url redirecting
+
+detail data flow and conditions for API responses
+
+## chapter 9 design a web crawler
+
+used by search engines to discover new or updayed content on the web
+
+used for:
+- search engine indexing
+- web archiving
+- web mining
+- web monitoring
+
+clarify:
+what is the purpose of the crawler? any of the used for above?
+how many pages does it collect per month?
+what content type is included? http only or pdf and more
+need to store html pages?
+how do we handle oages with duicate content?
+
+requirements
+scalability for handling billions of pages in parallel
+robust in handling bad html, unresponsive pages, crashes, bad links
+do not overload other pages with requests
+extensible to handle other types with minimal changes
+
+HLD 
+seed urls -> url frontier -> HTML downloader DNS resolver , content parser  -> Content Seen?
+either check Comtent DB or link extractor to url filter to url seen? to url storage or back to url frontier
+
