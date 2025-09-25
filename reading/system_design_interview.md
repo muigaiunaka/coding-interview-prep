@@ -324,3 +324,144 @@ HLD
 seed urls -> url frontier -> HTML downloader DNS resolver , content parser  -> Content Seen?
 either check Comtent DB or link extractor to url filter to url seen? to url storage or back to url frontier
 
+## Chapter 10 - Design A notification System
+3 types: mobile push notifications, SMS message, and Email
+
+### Understand the problem and Establish design scope
+#### Clarifying question to gather functional and non functional requirements
+Me: What types of notifications does the system support?
+Interviewer: Push notification, SMS message and email
+
+Me: Is it a real time system?
+Interviewer: want user to receive notification as soon as possible. slight delay is acceptable if system under high workload
+
+Me: What are supported devices?
+Interviewer: iOS devices, android devices, laptop/desktop
+
+Me: What triggers notifications?
+Interviewer: triggered by client apps. Also can be server-side scheduled
+
+Me: can users opt out?
+Interviewer: yes
+
+Me: how many notifications are sent out each day?
+Interviewer: 10 million mobile push notifications, 1 million SMS messages, and 5 million emails
+
+### High Level Design
+
+Each has a Provider -> 3P Service (Apple Push Notifications Service (APNS) or Firebase Cloud Messaging (Android) or SMS Service like Twilio or Email Service like Sendgrid) -> Client Device 
+
+Initial Design would be something like:
+
+Service 1 to N --> Notification System --> 3P Services --> Client Device (iOS/Android/SMS/Email)
+
+- A service can be a micro-service, cron job or distributed system that triggers notifcation sending events
+
+Problems identified with above initial design (during an interview, convey these scaling concerns or how a design falls short then try to address if possible):
+- single point of failure
+- hard to scale
+- performance bottlenecks due to processing and sending notifications potentially being resource intensive.
+
+Updated Design:
+Service 1 to N --> Notification Servers --> IOS/Android Push Notification --> Workers --> APNS/FCM --> iOS/Android
+                          |             --> SMS/Email Queue --> Workers --> Workers --> Twilio/SendGrid --> SMS/Email
+                          v
+                        Cache
+                          |
+                          v
+                       Database
+
+- Cache user info, device info, notification templates
+- DB stores user, notification and settings data
+- Message queues remove dependencies between components
+- Workers are servers that pull notification events from message queues and send them to corresponding third party service
+
+### Deep Dive
+Explore reliability, additional component and considerations, updated design
+
+- Notifications need to prevent data loss; fine if delayed or re-ordered but never can be lost. To mitigate this, store data in DB and use retry mechanism
+- can introduce de-dupe logic by checking if event id has been seen, if so, discard it, if not, send notification
+- check if a user is opted-in to receive a given notification type before sending
+- introduce monitoring of queued notifications to see if bottlenecks or slow processing is occurring and if more workers are needed (horizontal scale workers)
+
+During the interview, can update the design to reflect any of this additional deep dive solutions
+
+Final Design adds authentication/rate limiting at the notification servers level, analytics services connected to the client device, workers and notification servers, and notification log DB with notification template connected to workers
+
+## Chapter 11 - Design a News Feed System
+### Step 1 Understand the problem and Establish Design Scope
+#### Clarifying Questions to gather Functional and Non Functional Requirements
+Me: is this a mobile app, web app or both?
+Interviewer: Both
+
+Me: what are the important features?
+Interviewer: a user can publish a post and see her friend's post on the news feed page
+
+Me: is the news feed sorted by reverse chronological order or any particular order such as rank/scores? E.g. close friend posts have higher scores
+Interviewer: To keep things simple, let's assume the feed is sorted reverse chronological order (most recent at top)
+
+Me: how many friends can a user have?
+Interviewer: 5000
+
+Me: what is the traffic volume?
+Interviewer: 10 Million DAU
+
+Me: can feed contain images, videos or just text?
+Interviewer: it can contain media files, including both images and videos
+
+### Step 2 - Propose High Level Design and get buy-in then iterate
+Initial design has two parts: feed publishing and news feed building
+
+Need Feed Publishing API to publish a post
+POST /v1/me/feed
+Params:
+- content: content is the text of the post
+- auth_token: used to authenticate API requests
+
+Newsfeed retrieval API
+GET /v1/me/feed
+Params:
+- auth_token: used to authenticate API requests
+
+Initial Design
+DNS <--- User on Web Browser or Mobile App
+                        |
+                        |
+                        v
+                  Load Balancer
+                        |
+                        |
+                        v
+                   Web servers
+                        |
+                        |
+                        v
+                News Feed Service
+                        |
+                        |
+                        v
+                 News Feed Cache
+### Step 3 Deep Dive
+Deep dive introduces Post service -> Post Cache -> Post DB being called by web servers. Also introduce rate limiting and authentication at the Web Server level similar to like what an API Gateway would do.
+
+Web servers also now connect to a Notification Service. Also connects to a Fanout Service which will (1) get friend ids from a Graph DB, (2) get friends data from a user cache -> User DB and (3) connnect to message queues -> Fanout workers --> News Feed Cache
+
+*Fanout* is the process of delivering a post to all friends. Two Models:
+- fanout on write (push model)
+- fanout on read (pull model)
+
+Graph Databases great for managing relationship data or recommendations (followers/friends and follower/friend recs)
+
+Newsfeed retrieval deep dive
+- introduces CDN for for fast retrieval
+- broken down cache architecture fors news feed, content, social graph (followers/following), action (liked, replied, etc) and counters (like counters, reply counters, etc)
+
+Other Potential Paths to follow if time allows:
+- scaling (horizontal vs vertical)
+- read replicas
+- Leader-follower data replication
+- consistency odels
+- database sharding
+- keep stateless
+- support multiple data centers
+- monitor key metrics
