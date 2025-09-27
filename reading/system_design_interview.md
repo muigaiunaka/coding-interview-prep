@@ -465,3 +465,79 @@ Other Potential Paths to follow if time allows:
 - keep stateless
 - support multiple data centers
 - monitor key metrics
+
+## Ch. 12 - Design a Chat System
+### Step 1 - Understand the problem and establish design scope
+- Different types of chat apps
+- one on one (messenger, we chat, whatsapp)
+- office group chat (Slack)
+- game chat with large group and low voice latency (Discord)
+
+Requirement Gathering Questions
+- What type of chat app shall we design? 1 on 1 or group based? A: Both 1 on 1 and group chat
+- Is it a mobile app, web app or both? A: Boht
+- What is the scale? A: 50 million DAU
+- For group chat what is the group member limit? A: 100 people
+- What features are important for the chat app? Can it support attachment? A: 1 on 1 chat, group chat, online indicator. Only supports text messages
+- Is there a message size limit? A: Yes, max 100,000 characters long
+- Is end to end encryption required? A: Not for now but maybe if time allows we can discuss
+- How long should we store the chat history? A: Forever
+
+### Requirements
+- one on one chat with low delivery latency
+- small group chat (max 100 people)
+- online presence indicator
+- multiple device support. The same account can be logged in to multiple accounts at the same time
+- push notifications
+- supports 50 million DAU for scale
+
+### Step 2 - Propose high level design and get buy in
+(Mobile/Web) Client -----(message)-----> Chat Service (stores message and relays message) -----(message)-----> (Mobile/Web) Receiver Device
+
+Options for protocol or technique for sending and receiving message may be different.
+Server (Chat Service) sending through HTTP connection might be fine in some cases
+
+- Polling: client periodically asks the server if there are messages available.
+ - Tradeoffs: could be costly by consuming server resources to answer a question that offers no as an answer most of the time
+- Long polling: client holds the connection open until there are actually new messages available or a timeout threshold has been reached.
+ - Tradeoffs:
+  * Sender and receiver may not connect to the same chat server
+  * Server has no good way to tell if a client is disconnected
+  * inefficient if a user does not chat much
+- Web Socket: initiated by client, bi-directional and persistent. Most common solution for sending async updates from server to client.
+
+Sender <----- WebSocket -----> 
+                                 Chat Service
+Receiver <----- WebSocket ----->
+
+Stateless Services: traditional public facing request/response serviecs used to manage login, signup, user profile, etc
+Stateful service: each client maintains a persistent network connection (e.g. to a chat server)
+
+Adjusted HLD
+User (Web/Mobile) connects to Load balancer through HTTP connection
+User (Web/Mobile) connects to Real Time Services (Chat Servers, Online Indicator Presence Servers) through WebSockets connection
+LB and Real Time Services connect one way and bi-directionally to API Servers (for login, suignup, change profile, etc)
+API Servers connect one way to Notification Servers (for push notifications)
+API Servers, Notification Servers, Real Time Services connect to Key Value Store DBs (for chat history soring)
+
+Tip: examine data types and read/write patterns to land on database solution
+
+Message Data Model: message_id (bigint), message_from, message_to, content (text), created_at (timestamp)
+Group Chat message data model: channel_id (bigint) message_id, user_id, content (text), created_at (timestamp)
+
+### Step 3 Design Deep Dive
+Worth deeper exploration: service discovery, messaging flows, online/offline indicators
+
+Service Discovery recommends the best chat server for a client based on criteria like geographical location, server capacity, etc. Apache Zookeeper is a popular open source solution.
+
+Message flow: user A sends chat message, chat server gets message id and sends message to message sync queue, message is stored in key-value store, if user B online it's forwarded to chat server 2 where user B is connected and if offline a push notification is sent from Push notification servers, chat server 2 sends the message to user B
+
+Online Presence Indicator: can be triggered by user login, user log out, user disconnection. Publish subscribe model works fine for publishing event to channel for each combination of user but it gets expensive for large chats. To solve large group bottleneck, can fetch online status only when a user enters a group or manually refreshes the friend list
+
+### Step 4 Wrap Up
+If there's extra time can explore:
+- extending chat app to support media files other than text. Calls for compression, cloud storage and thumbnails.
+- End to end encryption [faq.wahtsapp.com/en/androd/28030015]
+- caching messages on the client side to reduce data transfer between client and server
+- how to improve load time
+- error handling. Retry mechanisms or queueing for failed message resend
