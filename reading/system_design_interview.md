@@ -541,3 +541,66 @@ If there's extra time can explore:
 - caching messages on the client side to reduce data transfer between client and server
 - how to improve load time
 - error handling. Retry mechanisms or queueing for failed message resend
+
+
+## Chapter 13 - Design a search autocomplete system or Design Top K most searched queries
+Other names: search as you type, typeahead, autocomplete, incremental search
+
+### Step 1 - Understanding the problem and establish design scope
+#### Questions for Requirements
+- Ask about where matching is supported in search query (beginning or middle too)
+- how amny autocomplete suggestions should be returned by the system?
+- How does the system know which suggestions to return? By popularity? By historical query frequency?
+- Should we include spell check? Autocorrect?
+- What language are search queries in? Discuss multi-language during deep dive but low priority
+- how many users use the product?
+
+#### Requirements Focus
+- Response time within 100 ms
+- Relevant to the search term
+- Results are sorted by poularity
+- Scalable to handle 10 MM DAU
+- highly available (chose availability over consistency meaning some customers will get different ordering of suggestions for example due to delayed read popularity)
+
+### Step 2 - High Level Design
+At a high level, the system contains:
+1. Data gathering service - gathers user input queries and aggregates them in real time
+2. Query service - returns 5 most frquently searched items
+
+simplified approach is a key value store of query to frequency but this is ineffcient for large data sets.
+
+### Step 3 - Deep dive
+Utilize a Trie data structure for a more optimal approach. Root is empty, each node is word or prefix, leaf (end of tree paths) is a full word.
+Designing algorithm for Trie interaction is out of scope of system design interview but optimizations like below are in scope:
+- limit the max length of a prefix
+- cache top search queries at each node: store top k most frequently used queries at each node (e.g. b node in trie would have 5 queries mapped to it, "be" prefix same thing, ber prefix
+
+Real time is hard to scale. Trie being rebuilt weekly or monthly from analytics logs or a logging services is a better way that scales
+
+Utilize *Workers* to perform async jobs at regular intervals. User workers to rebuild trie and store in Trie DB
+
+Utilize a Trie Cache to keep trie in memory for fast read and take weekly snapshot of Trie DB
+
+Trie DB can be either document store or key-value store (each prefix is mapped to a K/Value store of prefix to list of most frequent results). 
+
+##### Query Service
+Client (Mobile/Web) --> Load Balancer --> API Servers --> Trie Cache --> Trie DB
+
+- for faster response turn time use AJAX and browser caching on top of the query service design
+
+Scaling Storage
+- Naive solution: shard data based on the first charcter. Results in splitting search queries up to 26 servers. can go further to shard by two leter prefix or range (e.g. aa-ag) but this will result in uneven distribution
+- Optimize: analyze historical data distribution pattern and apply smarter sharding logic with a Shard Map Manager that maintains a lookup DB for identifying where rows should be stored
+
+### Follow Up
+How to handle multi languages?
+- store using unicode characters instead of alphabetic characters
+What if top search queries in one country are different from others?
+- might built different Tries for different countries. Store tries in CDNs to improve response time
+How can we support trending (real-time) search queries?
+- hard to fully say but the current design does not work becauses of the weekly update worker cadence and it takes a long time to build out a trie
+- some ways to consider:
+  - change ranking model (more weight to recent search queries)
+  - stream instead of batch data input. Calls for Apache Hadoop/MapReduce/Spark Streaming/Storm/Kafka etc domain knowledge 
+
+
