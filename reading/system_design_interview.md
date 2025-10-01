@@ -604,3 +604,80 @@ How can we support trending (real-time) search queries?
   - stream instead of batch data input. Calls for Apache Hadoop/MapReduce/Spark Streaming/Storm/Kafka etc domain knowledge 
 
 
+## Chapter 14 Design Youtube
+Requirement Gathering
+- what features are important? users can upload a video and watch a video
+- mobile, web and tv clients
+- 5 MM DAU
+- Do we need to support international users? Yes
+- video resolutions? all
+- file size requirements for videos?
+
+### Requirements
+- Ability to upload videos fast
+- Users can change video quality
+- High availability, scalability and reliability requirements
+
+CDN costs would be too high to serve all videos from a CDN
+
+### High Level Design
+Leverage cloud blob storage and cloud CDN like S3 and CloudFront
+
+Client (Mobile, Phone, TV) --> (Stream video from) CDN
+                           --> (feed recommendation, generating video upload URL, updating metadata DB and cache, user signup) --> API Servers
+
+Note to self: when you see the API servers box in high-level component drawings, read it as the backend app/service layer that implements the system’s public APIs and coordinates everything else.
+
+##### Video Uploading HLD
+Client <-- Load Balancer <-- API Servers --> Metadata Cache <--\
+  |                                      --> Metadata DB <-- Completion Handler  <--
+  |                                                                                 |
+  v                                                                                 |
+Blob Storage --> Transcoding Servers --> (transcoding complete) Completion Queue -- |
+                                     --> Blob Storage (holds transcoded data) --> CDN
+
+Full flow for video upload then Client to Metadata for the metadata updates
+
+Optimizations:
+- Parallelization
+- Only store popular videos or more frequently accessed videos in CDN
+- Retry mechanism for error handling and return proper error code to client for non-recoverable system failures
+
+## Chapter 15 Design Google Drive
+File storage and synchronization service that helps store documents, photos, videos and other files in the cloud
+
+What are the most important features?
+- Upload and download files, file sync, notifications
+What are the support files formats?
+- any file type
+Is there a file size limit?
+- 10GB or smaller
+How many users?
+- 10 MM DAU
+
+#### Requirements
+- User can add files
+- User can download files
+- The system syncs files across multiple devices
+- User can see file revisions
+- User can share files with other users or non-users
+- The system sends a notification when a file is edited, deleted or shared with the user
+Out of scope: Document editing and collaboration
+
+#### Non-Functional Requirements
+- Reliability. Data loss is unacceptable
+- Fast sync speed
+- Scalable to handle high volumes of traffic
+- Highly available and system is still useable when servers are offline, slowed down or have unexpected network errors
+
+strong consistency for file sync since one client cannot see a different thing than another. Strong consistency for metadata cache and database layers
+
+Choose relational database because ACID (Atomicity, Consistency, Isolation and Durability) are natively supported
+
+Define ACID
+- Atomicity -
+- Consistency -
+- Isolation -
+- Durability -
+
+- 
