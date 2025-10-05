@@ -113,3 +113,117 @@ Location cache
 
 Shard data by user id for relational database scaling
 
+Note to self: Web Socket servers are stateful so must allowe existing connections to drain when removing existing nodes
+
+
+!!!!!!!!!!!!!
+SKIPPED AHEAD TO CHAPTER 4, REVISIT AND FINISH NOTES IF EVER NECESSARY
+!!!!!!!!!!!!!
+
+## Chapter 4 Distributed Message Queue
+Message queue benefits are decoupling, improved scalability, increased availability, better performance (async communication)
+
+### Step 1 - Understand the problem and establish design scope
+producers send message to a queue and consumers consume messages from it.
+
+- What's the format and average size of messages? Is it text only or multimedia? Text only. Messages are generally KBs
+- Can messages be repeatedly consumed? Yes for this design (not normally in traditional mesage queues)
+- are messages consumed in the same order they were produced? Yes , FIFO (not normally a feature in traditional distributed message queue)
+- Does data need to be persisted and what's the data retention policy? Yes, two weeks
+- How many producers and consumers are we going to support? As much as possible
+- Data semantics to support? at-most-once, at-least once, exactly once? Definitely at-least-once. Support all and make configurable
+- What's the target throughput and end to end latency? High throughput for log aggregation for example. Low latency delivery for traditional message queue use cases
+
+#### Functional Requirements
+- Producers send messages to a message queue
+- Consumers consume messages from a message queue
+- Messages can be consumed repeatedly or only once
+- Historical data can be truncated
+- message size is in the kilobyte range
+- deliver messages to consumers in the order they were added to the queue
+- data delivery semantics are configurable
+
+#### Non functional requirements
+- high throughput or low latency, configurable
+- scalable. Can support sudden surge in message volume
+- persistent and durable. Data should be persisted on disk and replicated across multiple nodes
+
+### Step 2 High Level Design
+
+Note to self: Topic - cateogies used to organize messages. Each has a name that is unique across message queue service. Messages are sent to and read from a specific topic.
+
+Messaging Models
+- point-to-point - message is sent to a queue and consumed by one and only one consumer
+- Publish-subscribe model
+
+Topics, partitions, brokers
+- partition - a small subset of messages for a topic
+- brokers - servers that hold partitions
+- offset - the position os a message in the partition
+- consumer group - a set of consumers working together to consume messages from topics . (e.g. one consumer group for billing and the other for accounting)
+
+High Level Design
+
+        Metadata storage       Coordination Service
+                ^            __ ^
+                |            /
+                v           /
+          ________________
+          | Brokers      |
+Producers | Data storage |  --> Consumers (consumer groups)
+          |--------------|
+          | State storage|
+
+Producers push messages to specific topics
+Consumer group subscribes to topics and consumes messages
+Core Service and Storage
+- Broker holds multiple partitions
+- Storage
+  - Messages are persisted in data storage in partitions
+  - consumer states are managed by state storage
+  - config and properties of topics are persisted in metadata storage
+- coordination service
+  - ...
+
+### Step 3 Design Deep Dive
+- have a design that encourages batching
+- NOTE TO SELF: BATCHING GOOD FOR HIGH THROUGHPUT
+- 
+Data Storage
+- can use Write ahead log (WAL) which is a plain file where new entries are appended to an append-only log. Persist messages as WAL log files on disk. Better tradeoffs than using database since traditional DBs (NoSQL, Relational DB) are not ideal for handling BOTH write-heavy and read heavy access patterns at a large scale.
+
+Message Data Structure
+key byte[]
+value  byte[]
+topic string
+partition integer
+offset long
+timestamp long
+size  integer
+crc  integer
+
+consumer flow
+- push vs pull
+  - push model
+    - Pros: low latency, broker can push messages to consumer immediately
+    - Cons: consumers could get owerwhelmed
+  - pull model
+    - pros: consumers control cnosumptin rate. Also, more suitable for batch processing
+Most message queues, choose pull model.
+
+ZooKeeper - essential service for distributed systems, offering a hierarchical key-value store. Used toprovide a distributed configuration service, synchronization service, and naming registry.
+Use ZooKeeper for storing metadata
+
+Replication is classic solution to achieve high availability
+
+Scalability
+- Producers can scale by adding or removing producer instances
+- consumers groups, it's easy to add or remove a consumer group AND can have a rebalancing mechanism in the consumer group to handle caes if it crashes or consumer gets added/removed
+- broker
+
+- Data Delivery Semantics
+- at-most-once: a message will be delivered not more than once. Messages may be lost but are not redelivered
+- at-least-once: a message can be delivered more than once, no message should be lost (ok when data-duplication is not an issue)
+- exactly once: a message can be sent only once. Important when duplication is not acceptable and downstream service or third party doesn't support idempotency (repeated operations yield the same outcome)
+
+Read: Ch.4 Distributed Message Queue, Ch.5 Metrics Monitoring, Ch.9 S3-like Object Storage, Ch.11 Payment System, Ch.12 Digital Wallet.
