@@ -226,4 +226,99 @@ Scalability
 - at-least-once: a message can be delivered more than once, no message should be lost (ok when data-duplication is not an issue)
 - exactly once: a message can be sent only once. Important when duplication is not acceptable and downstream service or third party doesn't support idempotency (repeated operations yield the same outcome)
 
+
+## Chapter 5 - Metrics Monitoring and Alerting System
+
+### Step 1 - Understand the problem and establish design scope
+Who are we building the system for? In house system for big corp like Meta or Google or a SaaS service like Datadog or Splunk?
+- A: internal use only
+Which metrics do we want to collect?
+- A:operational system metrics. CPU load, memory usage, disk space consumption
+What is scale of users and sacle of system?
+- 100 MM DAU, 1000 server pools, 100 machines per pool
+What are supported alert channels?
+- A: Email, phone, PagerDuty, Webhooks (HTTP endpoints)
+What is data retention?
+- A: 1 year retention
+
+### High-level requirements and assumptions
+Requirements
+- support 100 MM DAU
+- need to retain data for 1 year
+- can monitor CPU usage, request count, memory usage, and message count in message queues
+Non Functional Requirements
+- The system should accommodate growing metrics and alert volume
+- low query latency for dashboards and alerts
+- high reliability to avoid missing critical alerts
+- flexible enough to easily integrate new tech in the future
+Below the cut line
+- log monitoring. Elasticsearch, Logstash, Kibana (ELK) stack is popular for collecting and monitoring logs
+- distributed system tracing - tracing solution that tracks service requests as they flow through distributed systems
+
+### Step 2 - Propose High-level design and get buy-in
+5 components: 
+1. data collection (collect metric data from different sources)
+2. data transmission (transfer data from sources to the metrics monitoring system)
+3. data storage (organize and store incoming data)
+4. alerting (analyze incoming data, detect anomalies and generate alerts. Send alerts to different communication channels)
+5. visualization (present data in graphs, charts, etc.)
+
+Example timeseries DBs:
+- InfluxDB
+- Prometheus - this and InfluxDB are designed to store large volumes of time-series data and quickly perform real time analysis on that data. Both rely on in memory cache and on-disk storage. Handle durability and performance well
+- Amazon Timestream
+- MetricsDB
+- OpenTSDB
+
+High level design
+
+
+                                                              v-- (send queries) Alerting System -> End Clients receive Alert (email, text, PagerDuty)
+Metrics Source --> Metrics Collector --> Time Series DB <-- Query Service
+                                                              ^--- (Send Queries) Visualization System
+
+Metrics source can be application servers, SQL databases, message queues, etc.
+Metrics collector - gathers metric data and writes data into the time-series DB. A cluster of servers that receives enormous amounts of data.
+Time-series DB - stores metric data as time series. Maintains indexes on labels to facilitate the fast lookup of time-series data by labels
+Query service - makes it easy to query and retrieve data from time-series DB
+Alerting system - sends alert notifications to various destinations
+Visualization system - this shows metrics in the form of various graphs/charts
+
+### Step 3 - Design Deep Dive
+- metrics collection
+- scaling metrics transmission pipeline
+- query service
+- storage layer
+- alerting system
+- visualization system
+
+push vs pull model considerations for the metrics collector
+
+Where aggregations can happen
+collection agent - client side; only supports simple aggregation logic
+Ingestion pipeline - need stream processing engines such as Flink to aggregate data before writing to the storage.
+Query side - raw data can be aggregated over a given time period at query time. Query speed is slower but no data loss
+
+Can add a cache layer to the query service to make query service more performant and help store query results
+
+Popular metrics monitoring systems like Prometheus and InfluxDB have their own query languages
+
+YAML commonly used to define rules (JSON probably ok too)
+
+Alerting System Deep Dive
+Rule config files are stored on cache. Cache interfaces with alert manager. Based on config rules, the alert manager calls the query service at a predefined interval. Alert Manager handls filtering, merging and deduping alerts.
+
+Hard to build Alerting Systems and Visualization Systems, can use off the shelf systems like Grafana for Vis Sys
+
+
+Final Design
+Metrics Source --> Metrics Collector --> Kafka --> Consumers --> Time Series DB <-- Query Service
+Query Service --> Cache
+Visualization System --> Query Service
+Query Service <-- Alerting System --> End Clients receive Alert (email, text, PagerDuty, HTTPS endpoints)
+
+
+## Chapter 7 - Hotel Reservation System
+
+
 Read: Ch.4 Distributed Message Queue, Ch.5 Metrics Monitoring, Ch.9 S3-like Object Storage, Ch.11 Payment System, Ch.12 Digital Wallet.
